@@ -162,6 +162,8 @@ def sync_collection(client, stream, state, stream_projection):
         nonlocal rows_saved, state, update_buffer
 
         if row.get('ns') != '{}.{}'.format(database_name, collection_name):
+            if row.get('ts'):
+                state = update_bookmarks(state, tap_stream_id, row['ts'])
             return
 
         row_op = row['op']
@@ -197,6 +199,8 @@ def sync_collection(client, stream, state, stream_projection):
 
             rows_saved += 1
 
+        state = update_bookmarks(state, tap_stream_id, row['ts'])
+
         # flush buffer if it has filled up
         if len(update_buffer) >= MAX_UPDATE_BUFFER_LENGTH:
             _flush_buffer_to_message()
@@ -209,7 +213,6 @@ def sync_collection(client, stream, state, stream_projection):
             update_buffer = set()
 
             # write state
-            state = update_bookmarks(state, tap_stream_id, row['ts'])
             singer.write_message(singer.StateMessage(value=copy.deepcopy(state)))
 
     # consider adding oplog_replay, but this would require removing the projection
@@ -239,8 +242,8 @@ def sync_collection(client, stream, state, stream_projection):
                 for sub_op_entry in apply_ops:
                     sub_op_entry["ts"] = op_entry["ts"]
                     _process_op(sub_op_entry)
-
-            _process_op(op_entry)
+            else:
+                _process_op(op_entry)
 
         # flush buffer if finished with oplog
         _flush_buffer_to_message()
