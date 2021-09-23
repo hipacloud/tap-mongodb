@@ -1,9 +1,12 @@
 import unittest
+from datetime import datetime, timezone
+
 import bson
 import decimal
 from jsonschema import validate
 
 import tap_mongodb.sync_strategies.common as common
+
 
 class TestRowToSchemaMessage(unittest.TestCase):
     # def test_one(self):
@@ -51,7 +54,6 @@ class TestRowToSchemaMessage(unittest.TestCase):
         changed = common.row_to_schema(schema, row)
         self.assertFalse(changed)
 
-
     def test_simple_date(self):
         row = {"a_date": bson.timestamp.Timestamp(1565897157, 1)}
         schema = {"type": "object", "properties": {}}
@@ -68,7 +70,6 @@ class TestRowToSchemaMessage(unittest.TestCase):
         }
         self.assertTrue(changed)
         self.assertEqual(expected, schema)
-
 
     def test_simple_decimal(self):
         row = {"a_decimal": bson.Decimal128(decimal.Decimal('1.34'))}
@@ -88,7 +89,6 @@ class TestRowToSchemaMessage(unittest.TestCase):
         self.assertTrue(changed)
         self.assertEqual(expected, schema)
 
-
     def test_simple_float(self):
         row = {"a_float": 1.34}
         schema = {"type": "object", "properties": {}}
@@ -105,7 +105,6 @@ class TestRowToSchemaMessage(unittest.TestCase):
         }
         self.assertTrue(changed)
         self.assertEqual(expected, schema)
-
 
     def test_decimal_then_float(self):
         decimal_row = {"a_field": bson.Decimal128(decimal.Decimal('1.34'))}
@@ -130,7 +129,6 @@ class TestRowToSchemaMessage(unittest.TestCase):
         self.assertTrue(changed_float)
 
         self.assertEqual(expected, schema)
-
 
     def test_float_then_decimal(self):
         float_row = {"a_field": 1.34}
@@ -178,7 +176,6 @@ class TestRowToSchemaMessage(unittest.TestCase):
         self.assertTrue(changed_float)
         self.assertFalse(changed_float_2)
         self.assertEqual(expected, schema)
-
 
     def test_decimal_then_decimal(self):
         decimal_row = {"a_field": bson.Decimal128(decimal.Decimal('1.34'))}
@@ -230,7 +227,6 @@ class TestRowToSchemaMessage(unittest.TestCase):
         self.assertTrue(changed_date)
         self.assertTrue(changed_decimal)
         self.assertEqual(expected, schema)
-
 
     def test_nested_data(self):
         date_row = {"foo": {"a_field": bson.timestamp.Timestamp(1565897157, 1)}}
@@ -434,3 +430,8 @@ class TestRowToSchemaMessage(unittest.TestCase):
         self.assertTrue(changed)
         self.assertFalse(changed_2)
         self.assertEqual(expected, schema)
+
+
+def test_get_mongodb_utc_datetime():
+    naive_datetime = datetime.utcnow()
+    assert common.get_mongodb_utc_datetime(naive_datetime) == naive_datetime.replace(tzinfo=timezone.utc)
