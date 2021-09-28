@@ -92,8 +92,11 @@ def get_roles(client, config):
 
         # for custom roles, get the "sub-roles"
         else:
-            role_info_list = client[config['database']].command(
-                {'rolesInfo': {'role': role_name, 'db': config['database']}})
+            role_database = role.get('db', config['database'])
+            role_info_list = client[role_database].command({
+                'rolesInfo': {'role': role_name, 'db': role_database},
+                'showPrivileges': True,
+            })
             role_info = [r for r in role_info_list.get('roles', []) if r['role'] == role_name]
             if len(role_info) != 1:
                 continue
@@ -101,7 +104,14 @@ def get_roles(client, config):
                 if sub_role.get('role') in ROLES_WITH_FIND_PRIVILEGES:
                     if sub_role.get('db'):
                         roles.append(sub_role)
+            if any(
+                    privilege
+                    for privilege in role_info[0].get('privileges', [])
+                    if 'find' in privilege.get('actions', [])
+            ):
+                roles.append(role)
     return roles
+
 
 def get_databases(client, config):
     roles = get_roles(client, config)
@@ -230,6 +240,7 @@ def write_schema_message(stream):
         schema=stream['schema'],
         key_properties=['_id']))
 
+
 def load_stream_projection(stream):
     md_map = metadata.to_map(stream['metadata'])
     stream_projection = metadata.get(md_map, (), 'tap-mongodb.projection')
@@ -249,6 +260,7 @@ def load_stream_projection(stream):
             .format(stream['tap_stream_id']))
 
     return stream_projection
+
 
 def clear_state_on_replication_change(stream, state):
     md_map = metadata.to_map(stream['metadata'])
@@ -275,6 +287,7 @@ def clear_state_on_replication_change(stream, state):
     state = singer.write_bookmark(state, tap_stream_id, 'last_replication_method', current_replication_method)
 
     return state
+
 
 def sync_stream(client, stream, state):
     tap_stream_id = stream['tap_stream_id']
@@ -387,9 +400,14 @@ def main_impl():
         state = args.state or {}
         do_sync(client, args.catalog.to_dict(), state)
 
+
 def main():
     try:
         main_impl()
     except Exception as exc:
         LOGGER.critical(exc)
         raise exc
+
+
+if __name__ == '__main__':
+    main()
