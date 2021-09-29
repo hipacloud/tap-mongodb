@@ -8,6 +8,7 @@ import pymongo
 from bson import timestamp
 
 import singer
+from pymongo.errors import OperationFailure
 from singer import metadata, metrics, utils
 
 import tap_mongodb.sync_strategies.common as common
@@ -187,7 +188,10 @@ def do_discover(client, config):
 
             LOGGER.info("Getting collection info for db: %s, collection: %s",
                         db_name, collection_name)
-            streams.append(produce_collection_schema(collection))
+            try:
+                streams.append(produce_collection_schema(collection))
+            except OperationFailure as e:
+                LOGGER.warning(str(e))
 
     json.dump({'streams' : streams}, sys.stdout, indent=2)
 
