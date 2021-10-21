@@ -236,12 +236,10 @@ def sync_collection(client, stream, state, stream_projection):
             if op_entry["op"] == "c":
                 # process command
                 apply_ops = op_entry["o"].get("applyOps")
-                if apply_ops is None:  # oplog for collection creation has no `applyOps`
-                    return
-
-                for sub_op_entry in apply_ops:
-                    sub_op_entry["ts"] = op_entry["ts"]
-                    _process_op(sub_op_entry)
+                if apply_ops:  # oplog for collection creation has no `applyOps`
+                    for sub_op_entry in apply_ops:
+                        sub_op_entry["ts"] = op_entry["ts"]
+                        _process_op(sub_op_entry)
             else:
                 _process_op(op_entry)
 
